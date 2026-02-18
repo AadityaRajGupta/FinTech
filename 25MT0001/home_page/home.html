@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project 2: Secure Federated Fraud Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        
+        /* Chart Container Specifics */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+
+        /* Custom Animations for Simulation */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        .animate-pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
+
+        .data-packet {
+            transition: all 1s ease-in-out;
+            opacity: 0;
+        }
+        
+        .packet-move-center {
+            opacity: 1;
+            transform: translate(0, 0); /* JavaScript will control this dynamic movement roughly */
+        }
+
+        /* Utility for hiding scrollbar in logs */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+    <!-- Chosen Palette: Slate (Backgrounds), Emerald (Success/Secure), Blue (Primary/Tech), Amber (Alerts) -->
+    <!-- Application Structure Plan: 
+         1. Hero Section: Hook the user with the core "Privacy vs. Accuracy" conflict.
+         2. System Architecture: A visual breakdown of the 3 key components (Bank Node, Aggregator, Cloud).
+         3. Interactive Simulation: The core "Demo". Users trigger training rounds. This proves "Bank A/B train locally" and "Aggregator creates Global Model".
+         4. Analytics Dashboard: Chart.js visualization showing the accuracy gain, proving "Accuracy improves vs single-bank".
+         5. Auditor's Log: Text-based view proving "No raw transactions leave bank DB".
+         This structure moves from Concept -> Action -> Proof -> Detail.
+    -->
+    <!-- Visualization & Content Choices:
+         - Simulation: Uses CSS Grid/Flexbox with JS-controlled opacity/text to animate the data flow without SVG. Goal: Show the flow.
+         - Accuracy Chart: Line chart (Chart.js). Goal: Prove value. Interaction: Updates after simulation rounds.
+         - Tech Stack Cards: Grid layout. Goal: Inform about Cloud/S3.
+         - Confirmation: NO SVG, NO Mermaid. All visuals are DOM elements or Canvas.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50 border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-blue-700">🔒 SecureFed<span class="text-slate-700 font-light">Bridge</span></span>
+                </div>
+                <div class="flex items-center space-x-8 hidden md:flex">
+                    <button onclick="scrollToSection('concept')" class="text-slate-600 hover:text-blue-600 transition">Concept</button>
+                    <button onclick="scrollToSection('simulation')" class="text-slate-600 hover:text-blue-600 transition">Simulation</button>
+                    <button onclick="scrollToSection('results')" class="text-slate-600 hover:text-blue-600 transition">Results</button>
+                    <button onclick="scrollToSection('tech')" class="text-slate-600 hover:text-blue-600 transition">Tech Stack</button>
+                </div>
+                <!-- Mobile Menu Button (simplified logic for SPA) -->
+                <div class="flex items-center md:hidden">
+                    <button onclick="alert('Please use desktop for full simulation experience')" class="text-slate-500">☰</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="bg-white pb-10 pt-16 lg:pb-16 lg:pt-24">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 class="text-4xl tracking-tight font-extrabold text-slate-900 sm:text-5xl md:text-6xl">
+                <span class="block">Privacy Preserving</span>
+                <span class="block text-blue-600">Cross-Bank Fraud Detection</span>
+            </h1>
+            <p class="mt-3 max-w-md mx-auto text-base text-slate-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+                Multiple banks. One powerful global model. <strong>Zero data sharing.</strong>
+                Experience how Federated Learning allows banks to fight fraud collectively without compromising customer privacy.
+            </p>
+            <div class="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
+                <div class="rounded-md shadow">
+                    <button onclick="scrollToSection('simulation')" class="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-10">
+                        Start Simulation 🚀
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Concept Section -->
+    <section id="concept" class="py-12 bg-slate-50 border-t border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-10">
+                <h2 class="text-base text-blue-600 font-semibold tracking-wide uppercase">The Problem & Solution</h2>
+                <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+                    Why Federated Learning?
+                </p>
+                <p class="mt-4 max-w-2xl text-xl text-slate-500 mx-auto">
+                    Banks are facing a dilemma: they need more data to detect sophisticated fraud, but regulations and privacy concerns prevent them from sharing it.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Problem Card -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition">
+                    <div class="flex items-center mb-4">
+                        <div class="h-10 w-10 bg-red-100 text-red-600 flex items-center justify-center rounded-full text-xl mr-3">🛑</div>
+                        <h3 class="text-lg font-bold text-slate-800">Traditional Approach (Siloed)</h3>
+                    </div>
+                    <ul class="space-y-3 text-slate-600">
+                        <li class="flex items-start">
+                            <span class="mr-2 text-red-500">•</span>
+                            Bank A only sees Bank A's fraud patterns.
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 text-red-500">•</span>
+                            Bank B has different fraud data but can't share it.
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 text-red-500">•</span>
+                            <strong>Result:</strong> Weak, local models that miss cross-bank fraud rings.
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Solution Card -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition">
+                    <div class="flex items-center mb-4">
+                        <div class="h-10 w-10 bg-emerald-100 text-emerald-600 flex items-center justify-center rounded-full text-xl mr-3">🤝</div>
+                        <h3 class="text-lg font-bold text-slate-800">Our Solution (Federated)</h3>
+                    </div>
+                    <ul class="space-y-3 text-slate-600">
+                        <li class="flex items-start">
+                            <span class="mr-2 text-emerald-500">•</span>
+                            Banks train models <strong>locally</strong> on their own secure servers.
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 text-emerald-500">•</span>
+                            Only <strong>model updates (math)</strong> are shared, never raw data.
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 text-emerald-500">•</span>
+                            <strong>Result:</strong> A "Global Model" that learns from everyone without seeing anyone's secrets.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Simulation Interface -->
+    <section id="simulation" class="py-16 bg-white border-t border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-10">
+                <h2 class="text-base text-blue-600 font-semibold tracking-wide uppercase">Interactive Demo</h2>
+                <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+                    System Orchestrator
+                </p>
+                <p class="mt-4 max-w-2xl text-xl text-slate-500 mx-auto">
+                    Watch the Federated Learning process in action. Act as the Central Admin to orchestrate a training round.
+                </p>
+            </div>
+
+            <!-- Simulation Controls -->
+            <div class="flex justify-center mb-8">
+                <button id="startBtn" onclick="runSimulationRound()" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-blue-700 transition transform hover:-translate-y-1 focus:outline-none ring-4 ring-blue-300">
+                    🔄 Start Training Round <span id="roundCounter">1</span>
+                </button>
+            </div>
+
+            <!-- Simulation Visualizer Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 relative">
+                
+                <!-- BANK A NODE -->
+                <div class="bg-slate-50 border-2 border-slate-200 rounded-xl p-6 relative flex flex-col items-center min-h-[300px]">
+                    <div class="absolute top-2 right-2 text-xs font-bold text-slate-400">TENANT: BANK A</div>
+                    <div class="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm">🏦</div>
+                    <h3 class="font-bold text-lg">Bank A Node</h3>
+                    <p class="text-xs text-slate-500 text-center mb-4">Local DB: 1.2M Txns<br>Fraud Rate: 0.5%</p>
+                    
+                    <!-- Internal Process Viz -->
+                    <div id="bankA-status" class="w-full bg-white p-3 rounded border border-slate-200 text-sm text-center mb-4 h-12 flex items-center justify-center font-mono text-slate-600">
+                        Idle
+                    </div>
+                    
+                    <div class="w-full bg-slate-200 rounded-full h-2.5 dark:bg-slate-300 mb-4 overflow-hidden">
+                        <div id="bankA-progress" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+
+                    <div class="mt-auto text-xs text-slate-400 flex items-center">
+                        <span class="mr-1">🔒</span> Data never leaves this box
+                    </div>
+                </div>
+
+                <!-- CENTRAL AGGREGATOR -->
+                <div class="bg-indigo-50 border-2 border-indigo-100 rounded-xl p-6 relative flex flex-col items-center min-h-[300px] z-10">
+                    <div class="absolute top-2 right-2 text-xs font-bold text-indigo-400">CLOUD AGGREGATOR</div>
+                    <div class="h-16 w-16 bg-indigo-100 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm animate-pulse-ring">☁️</div>
+                    <h3 class="font-bold text-lg text-indigo-900">Central Aggregator</h3>
+                    <p class="text-xs text-indigo-500 text-center mb-4">Global Model Version: <span id="modelVersion" class="font-mono font-bold">v1.0</span></p>
+
+                    <!-- Aggregation Viz -->
+                    <div id="aggregator-status" class="w-full bg-white p-3 rounded border border-indigo-200 text-sm text-center mb-4 h-12 flex items-center justify-center font-mono text-indigo-600">
+                        Waiting for updates...
+                    </div>
+
+                    <!-- Secure Storage Viz -->
+                    <div class="w-full mt-auto bg-white rounded p-3 border border-indigo-200">
+                        <div class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider">S3 Object Store</div>
+                        <div id="s3-bucket" class="flex space-x-1 h-8 overflow-hidden">
+                            <!-- JS will append 'blobs' here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BANK B NODE -->
+                <div class="bg-slate-50 border-2 border-slate-200 rounded-xl p-6 relative flex flex-col items-center min-h-[300px]">
+                    <div class="absolute top-2 right-2 text-xs font-bold text-slate-400">TENANT: BANK B</div>
+                    <div class="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm">🏢</div>
+                    <h3 class="font-bold text-lg">Bank B Node</h3>
+                    <p class="text-xs text-slate-500 text-center mb-4">Local DB: 850k Txns<br>Fraud Rate: 0.8%</p>
+                    
+                    <!-- Internal Process Viz -->
+                    <div id="bankB-status" class="w-full bg-white p-3 rounded border border-slate-200 text-sm text-center mb-4 h-12 flex items-center justify-center font-mono text-slate-600">
+                        Idle
+                    </div>
+                    
+                    <div class="w-full bg-slate-200 rounded-full h-2.5 dark:bg-slate-300 mb-4 overflow-hidden">
+                        <div id="bankB-progress" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+
+                    <div class="mt-auto text-xs text-slate-400 flex items-center">
+                        <span class="mr-1">🔒</span> Data never leaves this box
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Auditor Log Console -->
+            <div class="mt-8 bg-slate-900 rounded-lg p-4 font-mono text-xs md:text-sm text-green-400 h-48 overflow-y-auto shadow-inner no-scrollbar" id="auditorLog">
+                <div class="border-b border-slate-700 pb-2 mb-2 text-slate-400 font-bold flex justify-between">
+                    <span>> AUDITOR_TERMINAL_V2.4</span>
+                    <span>STATUS: MONITORING</span>
+                </div>
+                <div id="log-entries">
+                    <p class="opacity-50">[SYSTEM] Secure Logs Initialized...</p>
+                    <p class="opacity-50">[SYSTEM] Connection to Auditor Service established.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="results" class="py-12 bg-slate-50 border-t border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <!-- Text Content -->
+                <div>
+                    <h2 class="text-3xl font-extrabold text-slate-900 mb-4">Measurable Results</h2>
+                    <p class="text-lg text-slate-600 mb-6">
+                        The core promise of this project is that collaboration beats isolation. The chart demonstrates how the <strong>Global Federated Model</strong> consistently outperforms models trained by banks individually.
+                    </p>
+                    <ul class="space-y-4">
+                        <li class="flex">
+                            <div class="flex-shrink-0">
+                                <div class="flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-600 font-bold">1</div>
+                            </div>
+                            <div class="ml-4">
+                                <h4 class="text-lg font-bold text-slate-800">Higher Accuracy</h4>
+                                <p class="text-slate-500">Access to diverse fraud patterns improves detection rates by 15-20%.</p>
+                            </div>
+                        </li>
+                        <li class="flex">
+                            <div class="flex-shrink-0">
+                                <div class="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600 font-bold">2</div>
+                            </div>
+                            <div class="ml-4">
+                                <h4 class="text-lg font-bold text-slate-800">Faster Adaptation</h4>
+                                <p class="text-slate-500">When Bank A detects a new fraud type, the Global Model learns it and protects Bank B immediately.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Chart Content -->
+                <div class="bg-white p-4 rounded-xl shadow-lg border border-slate-100">
+                    <h3 class="text-center font-bold text-slate-700 mb-2">Model Accuracy: Local vs. Federated</h3>
+                    <div class="chart-container">
+                        <canvas id="accuracyChart"></canvas>
+                    </div>
+                    <p class="text-center text-xs text-slate-400 mt-2">Simulated F1-Score on Fraud Dataset</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Technical Architecture -->
+    <section id="tech" class="py-16 bg-white border-t border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-extrabold text-center text-slate-900 mb-12">System Architecture Components</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Card 1 -->
+                <div class="bg-slate-50 rounded-lg p-6 border border-slate-200 hover:border-blue-300 transition group">
+                    <div class="text-3xl mb-4 group-hover:scale-110 transition-transform">🛡️</div>
+                    <h3 class="font-bold text-slate-900 mb-2">Bank Node (Tenant)</h3>
+                    <p class="text-sm text-slate-600">Containerized local training service. Connects to local secure DB. Calculates gradients using PyTorch/TensorFlow.</p>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="bg-slate-50 rounded-lg p-6 border border-slate-200 hover:border-blue-300 transition group">
+                    <div class="text-3xl mb-4 group-hover:scale-110 transition-transform">⚖️</div>
+                    <h3 class="font-bold text-slate-900 mb-2">Central Aggregator</h3>
+                    <p class="text-sm text-slate-600">Stateless service. Receives encrypted weights. Performs Federated Averaging (FedAvg). Publishes new global model.</p>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="bg-slate-50 rounded-lg p-6 border border-slate-200 hover:border-blue-300 transition group">
+                    <div class="text-3xl mb-4 group-hover:scale-110 transition-transform">📦</div>
+                    <h3 class="font-bold text-slate-900 mb-2">S3 Object Store</h3>
+                    <p class="text-sm text-slate-600">Stores model blobs (checkpoints). Version controlled. Access restricted via IAM roles for Bank/Aggregator.</p>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="bg-slate-50 rounded-lg p-6 border border-slate-200 hover:border-blue-300 transition group">
+                    <div class="text-3xl mb-4 group-hover:scale-110 transition-transform">📜</div>
+                    <h3 class="font-bold text-slate-900 mb-2">Secure Logs</h3>
+                    <p class="text-sm text-slate-600">Immutable audit trail. Records hash of updates sent by banks to ensure accountability without revealing data.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-white py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-slate-400 text-sm">FinTech Project 2 • Privacy Preserving Federated Learning System</p>
+        </div>
+    </footer>
+
+    <!-- Logic Script -->
+    <script>
+        // State Management
+        const state = {
+            round: 0,
+            isTraining: false,
+            bankA: { accuracy: 65, status: 'Idle' },
+            bankB: { accuracy: 62, status: 'Idle' },
+            global: { accuracy: 50, version: 1.0 }, // Starts lower, learns fast
+            history: {
+                rounds: [0],
+                localAvg: [63],
+                global: [50]
+            }
+        };
+
+        // DOM Elements
+        const elStartBtn = document.getElementById('startBtn');
+        const elRoundCounter = document.getElementById('roundCounter');
+        const elBankAStatus = document.getElementById('bankA-status');
+        const elBankBStatus = document.getElementById('bankB-status');
+        const elBankAProg = document.getElementById('bankA-progress');
+        const elBankBProg = document.getElementById('bankB-progress');
+        const elAggStatus = document.getElementById('aggregator-status');
+        const elModelVersion = document.getElementById('modelVersion');
+        const elS3Bucket = document.getElementById('s3-bucket');
+        const elLogContainer = document.getElementById('auditorLog');
+        const elLogEntries = document.getElementById('log-entries');
+
+        // Scroll Helper
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Logger Helper
+        function log(actor, message, type = 'info') {
+            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+            const p = document.createElement('p');
+            p.className = 'font-mono mb-1';
+            
+            let colorClass = 'text-slate-300';
+            if(type === 'success') colorClass = 'text-green-400';
+            if(type === 'alert') colorClass = 'text-yellow-400';
+            if(type === 'secure') colorClass = 'text-blue-400';
+
+            p.innerHTML = `<span class="opacity-50">[${timestamp}]</span> <span class="font-bold ${colorClass}">${actor}:</span> ${message}`;
+            elLogEntries.appendChild(p);
+            elLogContainer.scrollTop = elLogContainer.scrollHeight;
+        }
+
+        // Chart Initialization
+        let accuracyChart;
+
+        function initChart() {
+            const ctx = document.getElementById('accuracyChart').getContext('2d');
+            
+            accuracyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Start', 'R1', 'R2', 'R3', 'R4', 'R5'],
+                    datasets: [
+                        {
+                            label: 'Global Federated Model',
+                            data: [50, null, null, null, null, null],
+                            borderColor: '#2563eb', // Blue-600
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Single Bank Avg (Baseline)',
+                            data: [63, 63.5, 64, 64.2, 64.5, 64.8], // Flat growth
+                            borderColor: '#94a3b8', // Slate-400
+                            borderDash: [5, 5],
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 40,
+                            max: 100,
+                            title: { display: true, text: 'Fraud Detection Accuracy (%)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Simulation Logic
+        function runSimulationRound() {
+            if (state.isTraining) return;
+            state.isTraining = true;
+            state.round++;
+            elStartBtn.disabled = true;
+            elStartBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            // 1. Start Local Training
+            log('SYSTEM', `Starting Round ${state.round}...`, 'info');
+            updateBankUI('training', 0);
+            elAggStatus.textContent = "Waiting for local updates...";
+            
+            // Simulate Training Progress
+            let progress = 0;
+            const trainingInterval = setInterval(() => {
+                progress += 5;
+                updateBankUI('training', progress);
+                
+                if (progress >= 100) {
+                    clearInterval(trainingInterval);
+                    finishLocalTraining();
+                }
+            }, 100);
+        }
+
+        function updateBankUI(status, progress) {
+            if (status === 'training') {
+                elBankAStatus.innerHTML = `<span class="animate-pulse">Training... Epoch ${Math.ceil(progress/20)}</span>`;
+                elBankBStatus.innerHTML = `<span class="animate-pulse">Training... Epoch ${Math.ceil(progress/20)}</span>`;
+                elBankAProg.style.width = `${progress}%`;
+                elBankBProg.style.width = `${progress}%`;
+            }
+        }
+
+        function finishLocalTraining() {
+            log('BANK_A', 'Local training complete. Generating Gradient update.', 'info');
+            log('BANK_B', 'Local training complete. Generating Gradient update.', 'info');
+            
+            elBankAStatus.textContent = "Encrypting Update...";
+            elBankBStatus.textContent = "Encrypting Update...";
+            
+            setTimeout(() => {
+                uploadUpdates();
+            }, 800);
+        }
+
+        function uploadUpdates() {
+            log('BANK_A', 'Uploading masked model weights to S3...', 'secure');
+            log('AUDITOR', 'Verified: Update blob contains no raw transaction data.', 'success');
+            
+            elBankAStatus.textContent = "Uploading...";
+            elBankBStatus.textContent = "Uploading...";
+
+            // Visual: Add blob to S3 bucket
+            setTimeout(() => {
+                const blob = document.createElement('div');
+                blob.className = 'h-6 w-6 rounded-full bg-blue-500 border-2 border-white shadow-sm';
+                blob.title = `Update R${state.round}`;
+                elS3Bucket.appendChild(blob.cloneNode()); // Bank A blob
+                elS3Bucket.appendChild(blob); // Bank B blob
+                
+                log('AGGREGATOR', 'Received 2 model updates.', 'info');
+                elAggStatus.textContent = "Aggregating Weights...";
+                elAggStatus.className = "w-full bg-indigo-100 p-3 rounded border border-indigo-300 text-sm text-center mb-4 h-12 flex items-center justify-center font-bold text-indigo-800 animate-pulse";
+                
+                setTimeout(finalizeRound, 1500);
+            }, 1000);
+        }
+
+        function finalizeRound() {
+            // Update Global Model Logic
+            const improvement = (95 - state.global.accuracy) * 0.2; // Diminishing returns formula
+            state.global.accuracy += improvement;
+            state.global.version += 0.1;
+            
+            // UI Updates
+            elModelVersion.textContent = `v${state.global.version.toFixed(1)}`;
+            elAggStatus.textContent = "Global Model Updated Broadcasted";
+            elAggStatus.className = "w-full bg-white p-3 rounded border border-indigo-200 text-sm text-center mb-4 h-12 flex items-center justify-center font-mono text-indigo-600";
+            
+            elBankAStatus.textContent = "Idle (Model Updated)";
+            elBankBStatus.textContent = "Idle (Model Updated)";
+            elBankAProg.style.width = '0%';
+            elBankBProg.style.width = '0%';
+
+            log('AGGREGATOR', `New Global Model v${state.global.version.toFixed(1)} distributed.`, 'success');
+            log('SYSTEM', `Round ${state.round} Complete. Accuracy: ${state.global.accuracy.toFixed(1)}%`, 'alert');
+
+            // Update Chart
+            updateChartData();
+
+            // Reset Button
+            state.isTraining = false;
+            elStartBtn.disabled = false;
+            elStartBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            elStartBtn.innerHTML = `🔄 Start Training Round ${state.round + 1}`;
+            elRoundCounter.innerText = state.round + 1;
+        }
+
+        function updateChartData() {
+            const chartData = accuracyChart.data.datasets[0].data;
+            // Fill previous slots if they were null (for the first run)
+            if (state.round === 1) {
+                chartData[1] = state.global.accuracy;
+            } else if (state.round <= 5) {
+                chartData[state.round] = state.global.accuracy;
+            } else {
+                // Shift data for rounds > 5
+                accuracyChart.data.labels.push(`R${state.round}`);
+                chartData.push(state.global.accuracy);
+                // Extend baseline
+                accuracyChart.data.datasets[1].data.push(65); 
+            }
+            accuracyChart.update();
+        }
+
+        // Init
+        window.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            log('SYSTEM', 'Ready to start simulation.', 'info');
+        });
+
+    </script>
+</body>
+</html>
